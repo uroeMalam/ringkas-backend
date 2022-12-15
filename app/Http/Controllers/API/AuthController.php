@@ -16,28 +16,40 @@ class AuthController extends Controller
             'message' => 'Hi there :)'
         ]);
     }
+    public function reject()
+    {
+        return response()->json([
+            'status' => false,
+            'message' => 'not able access this data, please do login'
+        ]);
+    }
     public function login(Request $request)
     {
-        if (!Auth::attempt($request->only('username', 'password'))) {
+        if (!Auth::attempt($request->only('name', 'password'))) {
             return response()->json([
                 'status' => false,
                 'message' => 'Username atau password salah'
             ]);
         }
 
-        $user = User::join('tb_level', 'tb_level.id', '=', 'users.id_level')
-            ->selectRaw('users.*, tb_level.level')
-            ->where('username', $request['username'])->firstOrFail();
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Berhasil Login',
-            'data' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-        ]);
+        try {
+            $user = User::with(['level'])->firstOrFail(); // dont use get (collection or create token not able to generate)
+    
+            $token = $user->createToken('auth_token')->plainTextToken;
+    
+            return response()->json([
+                'status' => true,
+                'message' => 'Berhasil Login',
+                'data' => $user,
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'message' => $th
+            ]);
+        }
     }
 
     public function logout(Request $request)
@@ -60,5 +72,31 @@ class AuthController extends Controller
             'status' => true,
             'message' => 'Berhasil Ubah Password',
         ]);
+    }
+
+    public function profile($idUser)
+    {
+        try {
+            $user = User::with(['level'])
+                    ->where('id',$idUser)
+                    ->first();
+            if ($user) {
+                return response()->json([
+                    'status' => true,
+                    'message' => 'get data successfull',
+                    'data' => $user,
+                ]);
+            }else {
+                return response()->json([
+                    'status' => true,
+                    'message' => 'data empty',
+                ]);
+            }
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'message' => $th
+            ]);
+        }
     }
 }
